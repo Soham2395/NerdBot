@@ -55,7 +55,7 @@ export async function POST(
     const companionKey = {
       companionName: name!,
       userId: user.id,
-      modelName: "llama2-13b",
+      modelName: "llama-2-13b",
     };
     const memoryManager = await MemoryManager.getInstance();
 
@@ -69,8 +69,6 @@ export async function POST(
 
     const recentChatHistory = await memoryManager.readLatestHistory(companionKey);
 
-    // Right now the preamble is included in the similarity search, but that
-    // shouldn't be an issue
 
     const similarDocs = await memoryManager.vectorSearch(
       recentChatHistory,
@@ -85,7 +83,7 @@ export async function POST(
     // Call Replicate for inference
     const model = new Replicate({
       model:
-        "a16z-infra/llama-2-13b-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5",
+      "lucataco/llama-2-13b-chat:18f253bfce9f33fe67ba4f659232c509fbdfb5025e5dbe6027f72eeb91c8624b",
       input: {
         max_length: 2048,
       },
@@ -120,9 +118,13 @@ export async function POST(
     await memoryManager.writeToHistory("" + response.trim(), companionKey);
     var Readable = require("stream").Readable;
 
-    let s = new Readable();
-    s.push(response);
-    s.push(null);
+    const encoder = new TextEncoder();
+    let s=new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(response.trim()));
+        controller.close();
+      }
+    });
     if (response !== undefined && response.length > 1) {
       memoryManager.writeToHistory("" + response.trim(), companionKey);
 
@@ -146,4 +148,4 @@ export async function POST(
   } catch (error) {
     return new NextResponse("Internal Error", { status: 500 });
   }
-};
+}
